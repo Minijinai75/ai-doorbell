@@ -40,7 +40,7 @@
 
 ```powershell
 cd C:\你想放的地方
-git clone https://github.com/<這個 repo 的網址>.git ai-doorbell
+git clone https://github.com/Minijinai75/ai-doorbell.git
 cd ai-doorbell
 npm install
 ```
