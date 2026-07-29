@@ -57,7 +57,13 @@ npm install
 
 ### 第三步：寫設定
 
-複製 `config.example.json` 成 `config.json`，改四個地方：
+先複製一份範本（在專案資料夾裡跑）：
+
+```powershell
+Copy-Item config.example.json config.json
+```
+
+用記事本或任何編輯器打開 `config.json`，改四個地方：
 
 | 欄位 | 填什麼 |
 |---|---|
@@ -83,6 +89,8 @@ node discord-watch.js
 **沒看到的話**看文末〈出事了看哪裡〉。
 
 ### 第五步：讓它在背景跑（不會有黑窗）
+
+**以下所有指令都要在專案資料夾裡跑**（如果你的視窗已經切到別的地方，先 `cd C:\你放專案的地方\ai-doorbell`）。
 
 ```powershell
 .\啟停\啟動.ps1

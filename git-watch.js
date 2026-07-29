@@ -164,7 +164,17 @@ function checkOne(repo, conf, state, inboxFile) {
     const out = git(repoPath, ['ls-remote', 'origin', branch]);
     remote = out.split(/\s+/)[0];
   } catch (e) {
-    log('WARN', `${repo.name}：問不到遠端（${e.message.split('\n')[0]}）——下一輪再試`);
+    // 錯誤訊息要講人話——這支是給別人裝的，貼一行 git 原文只會讓人愣在那裡
+    const raw = String(e.message || '');
+    let why = '下一輪再試';
+    if (/does not appear to be a git repository|Could not read from remote|'origin' does not appear/i.test(raw)) {
+      why = '這個倉庫沒有設定 origin（遠端網址）——確認 config 裡的 path 指到你 clone 下來的資料夾';
+    } else if (/Authentication|could not read Username|Permission denied|403/i.test(raw)) {
+      why = '沒有存取權限——如果是私人倉庫，先確認你這台電腦的 git 登入過（試著手動跑一次 git fetch）';
+    } else if (/unable to access|Could not resolve host|timed out/i.test(raw)) {
+      why = '連不上網路或 GitHub——這是暫時的，下一輪會自己再試';
+    }
+    log('WARN', `${repo.name}：問不到遠端。${why}`);
     return 0;
   }
   if (!remote) {
