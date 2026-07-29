@@ -1,0 +1,29 @@
+{
+  "_這是什麼": "聊天頻道（Discord）的耳朵設定。複製成 config.json 再改內容。一份設定＝一隻 bot。",
+
+  "identity": "你家 AI 的名字",
+  "_identity": "只用在紀錄與事件標記，方便多隻同時跑時分辨。",
+
+  "tokenFile": "C:/Users/你的帳號/.discord-secrets/你家AI的bot.txt",
+  "_tokenFile": "權杖檔的路徑。權杖是秘密值：不進 repo、不進紀錄、不進事件。這個檔自己開一個資料夾放，不要放在專案裡面。",
+
+  "userAgent": "DiscordBot (https://example.com, 1.0)",
+  "_userAgent": "改成你自己的網址（沒有網址就填 GitHub 個人頁）。缺這個會撞 40333——一種偽裝成 403 的攔截，很難查。",
+
+  "channels": [
+    { "id": "000000000000000000", "name": "頻道名字" }
+  ],
+  "_channels": "白名單，只監聽列在這裡的頻道。頻道 ID 怎麼拿：Discord 設定打開開發者模式，右鍵頻道→複製頻道 ID。",
+
+  "inboxFile": "C:/你家AI的資料夾/inbox.jsonl",
+  "_inboxFile": "訊息落地的地方，一行一則。沒開窗的時候訊息躺在這裡，你家 AI 下次開窗補讀不會漏。建議放在他自己的資料夾裡。",
+
+  "logFile": "./logs/doorbell.log",
+  "_logFile": "運轉紀錄。相對路徑以本專案資料夾為基準。",
+
+  "unhealthyTimeoutMs": 90000,
+  "_unhealthyTimeoutMs": "連線壞掉（狀態不是正常）撐超過這麼久就換一條新線。90 秒＝先給它自己重連的機會，再不好才換。",
+
+  "silenceTimeoutMs": 1800000,
+  "_silenceTimeoutMs": "線看起來是好的、但久到這個地步一個事件都沒有，保險換一條。預設 30 分鐘。別調短——頻道安靜是常態不是故障（這個值當初設 90 秒，結果它每 100 秒自己踢自己一次）。"
+}

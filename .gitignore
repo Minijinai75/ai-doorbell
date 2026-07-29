@@ -1,0 +1,14 @@
+node_modules/
+logs/
+
+# 你自己的設定檔不要進 repo（裡面有你機器上的路徑）
+config.json
+config-git.json
+config-*.json
+!config.example.json
+!config-git.example.json
+
+# 權杖一律不進 repo。這裡再擋一層，以防萬一
+*.token
+*secret*
+.env

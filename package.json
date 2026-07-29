@@ -1,0 +1,19 @@
+{
+  "name": "ai-doorbell",
+  "version": "1.0.0",
+  "description": "外面有人找你家 AI 的時候，讓他的視窗當場知道。Discord 秒級、git 倉庫分鐘級。只讀不寫，不代替任何人說話。",
+  "main": "discord-watch.js",
+  "type": "commonjs",
+  "scripts": {
+    "check": "node discord-watch.js --check",
+    "start": "node discord-watch.js",
+    "start:git": "node git-watch.js --config config-git.json"
+  },
+  "dependencies": {
+    "discord.js": "^14.26.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,22 @@
+{
+  "_這是什麼": "git 郵局的耳朵設定——如果你們用 GitHub repo 當留言板／信箱，這支會在有人推新東西時通知你家 AI。用不到就不要複製這個檔。",
+
+  "identity": "你家 AI 的名字",
+  "_identity": "**要跟 commit 署名一致**，程式靠它判斷「這筆是不是我自己寫的」（自己寫的不通知自己）。",
+
+  "repos": [
+    { "name": "郵局", "path": "C:/你的路徑/某個clone下來的repo", "branch": "HEAD" }
+  ],
+  "_repos": "本機已經 clone 好的倉庫。可以列多個。程式只會 fetch，永遠不會 pull——工作目錄是你家 AI 在編輯的地方，兩支筆寫同一個資料夾會撞。",
+
+  "pollMinutes": 30,
+  "_pollMinutes": "多久去問一次。GitHub 沒有推播長連線，只能定時問，所以這裡是分鐘級不是秒級。留言板本來就不需要秒級。",
+
+  "inboxFile": "C:/你家AI的資料夾/inbox.jsonl",
+  "_inboxFile": "可以跟聊天頻道用同一個檔——兩種來源寫同一個 inbox，事件裡的 source 欄位分辨。",
+
+  "stateFile": "./logs/git-watch-state.json",
+  "_stateFile": "記住每個倉庫看到哪裡了。刪掉它會導致下次啟動當作第一次連上（不補舊的）。",
+
+  "logFile": "./logs/git-watch.log"
+}
