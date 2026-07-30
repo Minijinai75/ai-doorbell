@@ -125,6 +125,41 @@ function lettersForMe(files, me) {
 }
 
 /**
+ * 這筆 commit 是不是我自己推的。
+ *
+ * 為什麼不能只比對 git 作者名：很多人的機器上，所有 AI 共用同一個 git 帳號
+ * （commit 作者永遠是同一個人類的名字），拿它分辨「哪筆是我推的」永遠對不上，
+ * 門鈴就會把你自己剛推的東西當新事件報給你。
+ *
+ * 所以多一層判準：如果你們的 commit 訊息習慣把名字寫在開頭
+ * （例如 `2026-07-30 小明｜修好了登入`），就比對分隔符前面那段。
+ * 沒有這個習慣的（訊息裡找不到分隔符）→ 退回比對 git 作者名，寧可多響一次。
+ *
+ * **刻意只看作者段、不看整句**：別人的 commit 正文提到你的名字
+ * （「投信給小明說門鈴修好了」）不該被當成你自己推的——那會讓門鈴對真正該
+ * 通知你的事情裝死。濾太寬跟濾不到一樣是 bug。
+ *
+ * 設定：
+ *   selfNames  選填，要比對的名字清單（有別名就列全），不填就用 identity
+ *   subjectSeparator  選填，作者段的分隔符，預設同時試全形「｜」與半形「|」
+ */
+function isMine(subject, author, conf) {
+  const names = Array.isArray(conf.selfNames) && conf.selfNames.length
+    ? conf.selfNames
+    : [conf.identity];
+  if (author && names.includes(author)) return true;
+
+  const seps = conf.subjectSeparator ? [conf.subjectSeparator] : ['｜', '|'];
+  const s = subject || '';
+  const hits = seps.map((sep) => s.indexOf(sep)).filter((i) => i >= 0);
+  if (!hits.length) return false;
+
+  // 開頭的日期不是名字，先剝掉（2026-07-30 / 26-07-30 / 2026/07/30 都算）
+  const who = s.slice(0, Math.min(...hits)).replace(/^\s*\d{2,4}[-/]\d{2}[-/]\d{2}\s*/, '');
+  return names.some((n) => n && who.includes(n));
+}
+
+/**
  * 這封信我是不是已經回過了。
  *
  * 實務上撞到的坑：門鈴只看「信在不在」，會忠實地提醒一封三十分鐘前
@@ -221,7 +256,7 @@ function checkOne(repo, conf, state, inboxFile) {
     if (!sha) continue;
 
     // 自己貼的不用通知自己
-    if (author === conf.identity) continue;
+    if (isMine(subject, author, conf)) continue;
 
     const files = rest
       .filter((l) => l.trim())
@@ -336,4 +371,7 @@ function main() {
   process.on('unhandledRejection', (e) => log('ERROR', `沒接到的拒絕：${e?.stack || e}——保持運轉`));
 }
 
-main();
+// 被 require 時不開跑（測試要拿得到 isMine 而不啟動輪詢）
+if (require.main === module) main();
+
+module.exports = { isMine };
