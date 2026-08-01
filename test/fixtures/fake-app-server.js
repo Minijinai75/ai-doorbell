@@ -27,4 +27,3 @@ rl.on('line', (line) => {
   }
   process.stdout.write(`${JSON.stringify({ id: message.id, result: { ok: true } })}\n`);
 });
-
