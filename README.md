@@ -181,8 +181,26 @@ node discord-watch.js
 | 連得上但收不到訊息 | bot 沒被邀進那個頻道，或沒有讀取權限 | 請伺服器管理員確認 bot 看得到那個頻道 |
 | 讀頻道回 403 | 九成是缺 User-Agent | 確認 `config.json` 的 `userAgent` 有填 |
 | 啟動腳本說失敗 | 看 `logs\boot.log` | 那裡會有原因 |
+| 跑 `.ps1` 直接報一串紅字 `Unexpected token`，中文全變亂碼 | Windows 內建的 PowerShell 5.1 把腳本用「系統預設編碼」讀，不是 UTF-8 | 本專案的 `.ps1` 已經存成 **UTF-8 with BOM** 解掉這個問題。如果你自己改過腳本，存檔時記得選「UTF-8 with BOM」（VS Code 右下角可以切）；或改用 PowerShell 7（`pwsh`），它預設就是 UTF-8 |
+| 設定檔明明在，卻說讀不到 / JSON 格式錯誤 | 同一個編碼問題，發生在讀 `config.json` 那一層 | 本專案已經在讀檔時明確指定 UTF-8。**不要幫 `config.json` 加 BOM 來解**——那個檔是 Node 在讀的，加了 BOM 反而會讓程式當場爆掉 |
 
 程式遇到「重試一萬次也沒用」的問題（例如上面前兩種）會直接告訴你該去點哪個勾，然後收工，不會無限重試洗版。
+
+### 中文與編碼：一句話原則
+
+Windows 上「同一份檔案給不同程式讀，規矩不一樣」是最常見的坑。分法很單純——**看誰讀它，不看它拿來做什麼**：
+
+- **PowerShell 會讀的檔**（`.ps1`）→ 存成 UTF-8 **with BOM**
+- **Node 會讀的檔**（`config.json` 這類）→ 保持 UTF-8 **無 BOM**，編碼由讀的那一端明確指定
+- **把門鈴的輸出接給別的程式處理時**（例如 `tail -F inbox.jsonl | python 你的腳本.py`）→ Windows 上 Python 讀 stdin 預設也是走系統編碼，**輸入和輸出兩端都要**設成 UTF-8，只設一端會在第一則中文訊息當掉：
+
+```python
+import sys
+sys.stdin.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
+```
+
+（裝了 PowerShell 7 的人多半不會踩到前兩個——它預設就是 UTF-8。用內建 5.1 的人一定會遇到。）
 
 ---
 

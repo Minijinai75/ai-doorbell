@@ -1,4 +1,4 @@
-# ai-doorbell——安裝／移除開機自啟（Windows 工作排程器）
+﻿# ai-doorbell——安裝／移除開機自啟（Windows 工作排程器）
 #
 # 四件套：①事先在複本上測過 ②動作前先報告要做什麼 ③重複跑不會出事 ④輸出講人話
 #
@@ -31,7 +31,10 @@ if (-not (Test-Path $ConfigPath)) {
     exit 1
 }
 
-$conf = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+# -Encoding UTF8 不能省：Windows PowerShell 5.1 預設用系統的 ANSI 編碼讀檔，
+# 設定檔裡只要有非英文字元就會變亂碼，ConvertFrom-Json 直接失敗。
+# 設定檔本身不能加 BOM 解決（node 端 JSON.parse 會爆），所以編碼在讀的這一端明示。
+$conf = Get-Content $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $who = $conf.identity
 # 有 repos 欄位＝git 郵局那種（定時去問 GitHub），否則是聊天頻道（Discord 長連線）
 $Prog = if ($conf.repos) { 'git-watch.js' } else { 'discord-watch.js' }

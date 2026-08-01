@@ -1,4 +1,4 @@
-# ai-doorbell——停止
+﻿# ai-doorbell——停止
 # 只殺「跑ai-doorbell discord-watch.js」的那支 node，其他 node 程式一律不碰。
 #
 # 用法：

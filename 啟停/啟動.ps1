@@ -1,4 +1,4 @@
-# ai-doorbell——手動啟動（無視窗）
+﻿# ai-doorbell——手動啟動（無視窗）
 # 已經在跑就不會重複開第二支（重複跑不會出事）。
 #
 # 用法：
@@ -16,7 +16,11 @@ if (-not (Test-Path (Join-Path $Root $Config))) {
     Write-Host "找不到設定檔：$Config（要放在 $Root 裡）" -ForegroundColor Red
     exit 1
 }
-$conf = Get-Content (Join-Path $Root $Config) -Raw | ConvertFrom-Json
+# -Encoding UTF8 不能省：Windows PowerShell 5.1 預設用系統的 ANSI 編碼讀檔，
+# 設定檔裡只要有非英文字元（中文、日文等）就會變亂碼，ConvertFrom-Json 直接失敗。
+# 為什麼不改成給 config.json 加 BOM 解：node 端是 JSON.parse(readFileSync(...,'utf8'))，
+# BOM 會讓它爆——設定檔必須保持無 BOM，所以編碼要在讀的這一端明示。
+$conf = Get-Content (Join-Path $Root $Config) -Raw -Encoding UTF8 | ConvertFrom-Json
 $who = $conf.identity
 # 有 repos 欄位＝git 郵局那種（定時去問 GitHub），否則是聊天頻道（Discord 長連線）
 $Prog = if ($conf.repos) { 'git-watch.js' } else { 'discord-watch.js' }
