@@ -6,8 +6,12 @@
   "type": "commonjs",
   "scripts": {
     "check": "node discord-watch.js --check",
+    "test": "node --test test/*.test.js",
     "start": "node discord-watch.js",
-    "start:git": "node git-watch.js --config config-git.json"
+    "start:git": "node git-watch.js --config config-git.json",
+    "start:codex": "node codex-watch.js --config config.json",
+    "check:codex": "node codex-watch.js --config config.json --check",
+    "codex:attach": "node codex-attach.js --config config.json"
   },
   "dependencies": {
     "discord.js": "^14.26.4"

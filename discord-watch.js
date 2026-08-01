@@ -113,9 +113,9 @@ function loadToken(tokenFile) {
   return token;
 }
 
-/** 權杖只以「長度＋頭尾各三碼」示人，值本身永不進畫面、log 或門鈴。 */
+/** 權杖只報長度；任何字元都不進畫面、log 或門鈴。 */
 function maskToken(token) {
-  return `長度 ${token.length}，${token.slice(0, 3)}…${token.slice(-3)}`;
+  return `長度 ${token.length}`;
 }
 
 function resolveFromConfigDir(p) {

@@ -18,6 +18,21 @@
   "inboxFile": "C:/你家AI的資料夾/inbox.jsonl",
   "_inboxFile": "訊息落地的地方，一行一則。沒開窗的時候訊息躺在這裡，你家 AI 下次開窗補讀不會漏。建議放在他自己的資料夾裡。",
 
+  "codex": {
+    "enabled": false,
+    "_enabled": "要讓 Discord 新訊息真正喚醒 Codex 才改成 true；只想落地 inbox 就維持 false。",
+    "threadRegistryFile": "C:/你家AI的資料夾/codex-doorbell/thread-bindings.jsonl",
+    "_threadRegistryFile": "哪一扇 Codex 窗要接門鈴的追加式紀錄；不含權杖。",
+    "ledgerFile": "C:/你家AI的資料夾/codex-doorbell/delivered.jsonl",
+    "_ledgerFile": "已送進 Codex 的 Discord message ID；用來防止重啟後重送。",
+    "channels": ["000000000000000000"],
+    "_channels": "Codex 喚醒白名單；通常跟上面的 Discord channels 相同。",
+    "pollIntervalMs": 500,
+    "retryDelayMs": 5000,
+    "requestTimeoutMs": 30000,
+    "logFile": "./logs/codex-watch.log"
+  },
+
   "logFile": "./logs/doorbell.log",
   "_logFile": "運轉紀錄。相對路徑以本專案資料夾為基準。",
 

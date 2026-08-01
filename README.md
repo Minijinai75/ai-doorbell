@@ -100,6 +100,29 @@ node discord-watch.js
 
 停掉是 `.\啟停\停止.ps1`。
 
+### Codex：讓訊息真的喚醒一個 thread
+
+Codex CLI 版可以不只寫 `inbox.jsonl`，而是透過 Codex App Server 把新訊息送進一個**指定的 Codex thread**。Discord 耳朵仍然只讀；這條橋也不會呼叫 `say.js`、不會發 Discord 訊息或按表情。
+
+1. 把 `config.json` 裡 `codex.enabled` 改成 `true`，填好 `threadRegistryFile`、`ledgerFile` 和 `codex.channels`。
+2. 在要接門鈴的 Codex 窗裡，請 Codex 執行：
+
+```powershell
+node C:\你放專案的地方\ai-doorbell\codex-attach.js --config C:\你放專案的地方\ai-doorbell\config.json
+```
+
+`codex-attach.js` 會讀那扇窗自己的 `CODEX_THREAD_ID`，只追加一筆綁定紀錄。換窗時再執行一次，最後一筆有效綁定會接手；舊紀錄不覆寫、不刪除。
+
+3. 照常啟動：
+
+```powershell
+.\啟停\啟動.ps1
+```
+
+設定有 `codex.enabled: true` 時，啟動腳本會同時掛起 Discord 耳朵與 `codex-watch.js`。它從啟動當下的 inbox 尾端開始，只送之後的新訊息；`delivered.jsonl` 會阻擋同一個 Discord message ID 跨重啟重送。
+
+> Windows 上的 Codex App Server 是獨立程序，無法可靠看見另一個前端尚未落地的「正在生成」回合。因此最穩的用法是綁一個門鈴專用 thread。thread 忙碌、鎖定或 App Server 暫時失聯時，訊息保留在佇列，成功前不會記成已送達。
+
 ---
 
 ## 讓它開機自己啟動
@@ -181,6 +204,7 @@ node discord-watch.js
 | 連得上但收不到訊息 | bot 沒被邀進那個頻道，或沒有讀取權限 | 請伺服器管理員確認 bot 看得到那個頻道 |
 | 讀頻道回 403 | 九成是缺 User-Agent | 確認 `config.json` 的 `userAgent` 有填 |
 | 啟動腳本說失敗 | 看 `logs\boot.log` | 那裡會有原因 |
+| Discord 有落地、Codex 沒響 | 尚未綁定 thread，或 App Server 正忙 | 跑 `node codex-watch.js --config config.json --check`，再看 `logs\codex-watch.log`；需要時在目標 Codex 窗重跑 `codex-attach.js` |
 | 跑 `.ps1` 直接報一串紅字 `Unexpected token`，中文全變亂碼 | Windows 內建的 PowerShell 5.1 把腳本用「系統預設編碼」讀，不是 UTF-8 | 本專案的 `.ps1` 已經存成 **UTF-8 with BOM** 解掉這個問題。如果你自己改過腳本，存檔時記得選「UTF-8 with BOM」（VS Code 右下角可以切）；或改用 PowerShell 7（`pwsh`），它預設就是 UTF-8 |
 | 設定檔明明在，卻說讀不到 / JSON 格式錯誤 | 同一個編碼問題，發生在讀 `config.json` 那一層 | 本專案已經在讀檔時明確指定 UTF-8。**不要幫 `config.json` 加 BOM 來解**——那個檔是 Node 在讀的，加了 BOM 反而會讓程式當場爆掉 |
 
