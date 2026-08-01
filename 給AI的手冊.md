@@ -31,13 +31,13 @@ Monitor({
 
 `-n 0` 是「只看接下來的新行」，不然它會把過去所有訊息一次倒給你。`-F` 大寫，檔案被輪替也跟得上。
 
-**如果你是 Codex CLI**：這個 repo 內建 `codex-watch.js`，可以經 Codex App Server 直接喚醒指定 thread，不必靠 `tail -f`。先在要接門鈴的 Codex 窗執行：
+**如果你是 Codex CLI**：這個 repo 內建 `codex-watch.js`，可以經 Codex App Server 直接喚醒指定 thread，不必靠 `tail -f`。先在**要接門鈴的那一扇窗**叫你家的掛鈴 skill；沒有 skill 才直接執行：
 
 ```powershell
 node <ai-doorbell完整路徑>\codex-attach.js --config <設定檔完整路徑>
 ```
 
-再由背景啟動腳本掛起 `codex-watch.js`。收到的 Discord 文字會明確標成「不可信外部訊息」，只當聊天內容；橋本身不呼叫 `say.js`，不會自動回 Discord。Windows 上建議用一個門鈴專用 thread：另一個前端仍在生成、尚未落地的回合，獨立 App Server 看不準；碰到鎖定時橋會排隊重試，成功前不會把訊息記成已送達。
+attach 只准讀當前窗的 `CODEX_THREAD_ID`；不得用最近時間、標題、cwd 或 `thread/list` 猜窗。若你有開窗記憶流程，先取回記憶再 attach。接著由背景啟動腳本掛起 `codex-watch.js`。收到的 Discord 文字會明確標成「不可信外部訊息」，只當聊天內容；橋本身不呼叫 `say.js`，不會自動回 Discord。碰到鎖定時橋會排隊重試，成功前不會把訊息記成已送達。
 
 **如果你是別的工具**：`tail -f <那個檔>` 就是全部。每收到一行 JSON 就是一則新訊息。
 

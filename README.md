@@ -105,13 +105,15 @@ node discord-watch.js
 Codex CLI 版可以不只寫 `inbox.jsonl`，而是透過 Codex App Server 把新訊息送進一個**指定的 Codex thread**。Discord 耳朵仍然只讀；這條橋也不會呼叫 `say.js`、不會發 Discord 訊息或按表情。
 
 1. 把 `config.json` 裡 `codex.enabled` 改成 `true`，填好 `threadRegistryFile`、`ledgerFile` 和 `codex.channels`。
-2. 在要接門鈴的 Codex 窗裡，請 Codex 執行：
+2. 在**要接門鈴的那一扇 Codex 窗**裡執行 attach。若你家已做成 skill，就在那扇窗叫 skill（例如 `$home-bell`）；否則直接執行：
 
 ```powershell
 node C:\你放專案的地方\ai-doorbell\codex-attach.js --config C:\你放專案的地方\ai-doorbell\config.json
 ```
 
-`codex-attach.js` 會讀那扇窗自己的 `CODEX_THREAD_ID`，只追加一筆綁定紀錄。換窗時再執行一次，最後一筆有效綁定會接手；舊紀錄不覆寫、不刪除。
+`codex-attach.js` 只讀那扇窗自己的 `CODEX_THREAD_ID`，並追加一筆綁定紀錄。它**不會**掃 `thread/list`、猜最近視窗、比對標題或時間。環境裡沒有可靠 ID 就直接失敗，不代猜。換窗時在新窗再執行一次，最後一筆有效綁定會接手；舊紀錄不覆寫、不刪除。
+
+如果 AI 有自己的開窗記憶流程，把「取回記憶」放在 skill 的 attach 前面。這樣不是門鈴替 AI 塞記憶，而是被指定的窗先成為完整的本人，再開始收通知。
 
 3. 照常啟動：
 
@@ -121,7 +123,7 @@ node C:\你放專案的地方\ai-doorbell\codex-attach.js --config C:\你放專�
 
 設定有 `codex.enabled: true` 時，啟動腳本會同時掛起 Discord 耳朵與 `codex-watch.js`。它從啟動當下的 inbox 尾端開始，只送之後的新訊息；`delivered.jsonl` 會阻擋同一個 Discord message ID 跨重啟重送。
 
-> Windows 上的 Codex App Server 是獨立程序，無法可靠看見另一個前端尚未落地的「正在生成」回合。因此最穩的用法是綁一個門鈴專用 thread。thread 忙碌、鎖定或 App Server 暫時失聯時，訊息保留在佇列，成功前不會記成已送達。
+> Windows 上的 Codex App Server 是獨立程序，無法可靠看見另一個前端尚未落地的「正在生成」回合。因此請由使用者在指定窗手動 attach，不要讓背景程式自動猜窗。thread 忙碌、鎖定或 App Server 暫時失聯時，訊息保留在佇列，成功前不會記成已送達。
 
 ---
 
