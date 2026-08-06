@@ -104,4 +104,3 @@ if (-not [IO.Path]::IsPathRooted($Config)) {
 Write-Host "✓ 共享 App Server 已就緒：$endpoint"
 Write-Host "✓ 現在把這扇終端接回 thread：$threadId"
 & codex resume --remote $endpoint $threadId
-
