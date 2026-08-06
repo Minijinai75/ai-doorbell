@@ -11,7 +11,9 @@ const {
   shouldDeliverRecord,
 } = require('./codex-delivery');
 const { JsonlFollower, readLatestThreadBinding } = require('./codex-inbox');
+const { ensureDiscordReplyThread } = require('./codex-reply-thread');
 const { spawnCodexAppServer } = require('./codex-stdio-transport');
+const { createDiscordSenderFromConfig } = require('./discord-send');
 
 function twNow() {
   return new Intl.DateTimeFormat('sv-SE', {
@@ -37,6 +39,27 @@ function loadConfig(configPath) {
   if (!config.inboxFile) throw new Error('設定檔缺少 inboxFile');
   if (!config.codex?.threadRegistryFile) throw new Error('設定檔缺少 codex.threadRegistryFile');
   if (!config.codex?.ledgerFile) throw new Error('設定檔缺少 codex.ledgerFile');
+  if (config.codex.discordReply?.enabled) {
+    const threadMode = config.codex.discordReply.threadMode || 'fork';
+    const actionPolicy = config.codex.discordReply.actionPolicy || 'chat-only';
+    if (!['bound', 'fork'].includes(threadMode)) {
+      throw new Error('codex.discordReply.threadMode 只能是 bound 或 fork');
+    }
+    if (!['chat-only', 'reversible'].includes(actionPolicy)) {
+      throw new Error('codex.discordReply.actionPolicy 只能是 chat-only 或 reversible');
+    }
+    if (actionPolicy === 'reversible' && threadMode !== 'bound') {
+      throw new Error('codex.discordReply.actionPolicy=reversible 必須搭配 threadMode=bound');
+    }
+    if (!Array.isArray(config.codex.discordReply.allowedAuthorIds)
+      || config.codex.discordReply.allowedAuthorIds.length === 0) {
+      throw new Error('雙向 Discord 必須設定 codex.discordReply.allowedAuthorIds 白名單');
+    }
+    if (threadMode === 'fork' && !config.codex.discordReply.threadRegistryFile) {
+      throw new Error('雙向 Discord 必須設定 codex.discordReply.threadRegistryFile');
+    }
+    if (!config.tokenFile) throw new Error('雙向 Discord 必須設定 tokenFile');
+  }
   return config;
 }
 
@@ -60,6 +83,11 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
   const registryFile = resolveFromConfig(configPath, codex.threadRegistryFile);
   const ledgerFile = resolveFromConfig(configPath, codex.ledgerFile);
   const logFile = resolveFromConfig(configPath, codex.logFile || './logs/codex-watch.log');
+  const replyConfig = codex.discordReply?.enabled ? codex.discordReply : null;
+  const replyThreadMode = replyConfig?.threadMode || 'fork';
+  const replyThreadRegistryFile = replyConfig && replyThreadMode === 'fork'
+    ? resolveFromConfig(configPath, replyConfig.threadRegistryFile)
+    : null;
   const logger = createLogger(logFile);
   const binding = readLatestThreadBinding(registryFile);
 
@@ -79,6 +107,7 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
   });
   const ledger = new DeliveryLedger(ledgerFile);
   let client = null;
+  let discordSender = null;
   let closed = false;
   let queue = Promise.resolve();
 
@@ -87,10 +116,10 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
     client = null;
   }
 
-  function getClient() {
+  function getClient(activeBinding = binding) {
     if (client) return client;
     const transport = spawnCodexAppServer({
-      cwd: binding?.cwd || process.cwd(),
+      cwd: activeBinding?.cwd || process.cwd(),
       onDiagnostic: (message) => logger.log('APP', message),
     });
     client = new CodexAppServerClient({
@@ -98,6 +127,11 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
       requestTimeoutMs: codex.requestTimeoutMs || 30000,
     });
     return client;
+  }
+
+  function getDiscordSender() {
+    if (!discordSender) discordSender = createDiscordSenderFromConfig(config, configPath);
+    return discordSender;
   }
 
   async function send(record) {
@@ -111,10 +145,31 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
         const latestBinding = readLatestThreadBinding(registryFile);
         if (!latestBinding) throw new Error('尚未綁定 Codex thread');
         try {
+          const activeClient = getClient(latestBinding);
+          const deliveryBinding = replyConfig && replyThreadMode === 'fork'
+            ? await ensureDiscordReplyThread({
+              client: activeClient,
+              registryFile: replyThreadRegistryFile,
+              sourceBinding: latestBinding,
+            })
+            : latestBinding;
           const result = await deliverDiscordRecord({
-            client: getClient(), ledger, record, binding: latestBinding,
+            client: activeClient,
+            ledger,
+            record,
+            binding: deliveryBinding,
+            discordReply: replyConfig ? {
+              send: (payload) => getDiscordSender().send(payload),
+              responseTimeoutMs: replyConfig.responseTimeoutMs || 600000,
+              restrictExecution: replyThreadMode === 'fork',
+              allowActions: replyConfig.actionPolicy === 'reversible',
+            } : null,
           });
-          logger.log('INFO', `訊息 ${record.messageId} 已送進 Codex thread ${latestBinding.threadId}`);
+          if (replyConfig) {
+            logger.log('INFO', `訊息 ${record.messageId} 已由 Codex thread ${deliveryBinding.threadId} 回覆 Discord`);
+          } else {
+            logger.log('INFO', `訊息 ${record.messageId} 已送進 Codex thread ${latestBinding.threadId}`);
+          }
           return result;
         } catch (error) {
           resetClient();
@@ -136,6 +191,7 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
     for (const record of records) {
       if (!shouldDeliverRecord(record, {
         allowedChannels,
+        allowedAuthorIds: replyConfig?.allowedAuthorIds || [],
         ownAuthorId: codex.ownAuthorId,
       })) continue;
       if (ledger.has(record.messageId || record.id)) continue;
@@ -145,7 +201,10 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
     }
   }, codex.pollIntervalMs || 500);
 
-  logger.log('INFO', `Codex 門鈴開始守候；白名單頻道 ${allowedChannels.join('、') || '沿用全部 inbox'}`);
+  const mode = replyConfig
+    ? `雙向 DC 對話（${replyThreadMode === 'bound' ? '沿用原 thread' : '專用 fork'}）`
+    : '只送入 Codex';
+  logger.log('INFO', `Codex 門鈴開始守候（${mode}）；白名單頻道 ${allowedChannels.join('、') || '沿用全部 inbox'}`);
   return {
     close() {
       closed = true;

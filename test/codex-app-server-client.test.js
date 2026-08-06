@@ -24,6 +24,10 @@ class FakeTransport {
     if (response) queueMicrotask(() => this.lineHandler(response));
   }
 
+  emit(message) {
+    queueMicrotask(() => this.lineHandler(message));
+  }
+
   close() {}
 }
 
@@ -96,4 +100,81 @@ test('app-server 沒回應時逾時拒絕，不讓門鈴永久卡死', async () 
   const client = new CodexAppServerClient({ transport, requestTimeoutMs: 10 });
 
   await assert.rejects(client.initialize(), /逾時/);
+});
+
+test('能等指定 thread 與 turn 完成，並保留先抵達的完成通知', async () => {
+  const transport = new FakeTransport(() => null);
+  const client = new CodexAppServerClient({ transport, requestTimeoutMs: 50 });
+  const completed = {
+    method: 'turn/completed',
+    params: {
+      threadId: 'thread-1',
+      turn: {
+        id: 'turn-1',
+        status: 'completed',
+        items: [{ type: 'agentMessage', id: 'a1', text: '收到，我在。', phase: 'final_answer' }],
+      },
+    },
+  };
+
+  transport.emit(completed);
+  const result = await client.waitForTurnCompleted({
+    threadId: 'thread-1',
+    turnId: 'turn-1',
+    timeoutMs: 50,
+  });
+
+  assert.equal(result.turn.id, 'turn-1');
+  assert.equal(result.turn.items[0].text, '收到，我在。');
+});
+
+test('等待 turn 完成時不會誤收別的 thread 或 turn', async () => {
+  const transport = new FakeTransport(() => null);
+  const client = new CodexAppServerClient({ transport, requestTimeoutMs: 50 });
+  const waiting = client.waitForTurnCompleted({
+    threadId: 'thread-right',
+    turnId: 'turn-right',
+    timeoutMs: 50,
+  });
+
+  transport.emit({
+    method: 'turn/completed',
+    params: { threadId: 'thread-wrong', turn: { id: 'turn-right', status: 'completed', items: [] } },
+  });
+  transport.emit({
+    method: 'turn/completed',
+    params: { threadId: 'thread-right', turn: { id: 'turn-wrong', status: 'completed', items: [] } },
+  });
+  transport.emit({
+    method: 'turn/completed',
+    params: { threadId: 'thread-right', turn: { id: 'turn-right', status: 'completed', items: [] } },
+  });
+
+  const result = await waiting;
+  assert.equal(result.turn.id, 'turn-right');
+});
+
+test('fork thread 時保留唯讀與 approval 設定', async () => {
+  const transport = new FakeTransport((message) => {
+    if (message.method === 'initialize') return { id: message.id, result: {} };
+    if (message.method === 'thread/fork') {
+      return { id: message.id, result: { thread: { id: 'thread-dc' } } };
+    }
+    return null;
+  });
+  const client = new CodexAppServerClient({ transport });
+
+  const thread = await client.forkThread('thread-ui', {
+    approvalPolicy: 'never',
+    sandbox: 'read-only',
+    ephemeral: false,
+  });
+
+  assert.equal(thread.id, 'thread-dc');
+  assert.deepEqual(transport.sent[2].params, {
+    threadId: 'thread-ui',
+    approvalPolicy: 'never',
+    sandbox: 'read-only',
+    ephemeral: false,
+  });
 });

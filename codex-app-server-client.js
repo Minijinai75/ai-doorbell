@@ -12,6 +12,8 @@ class CodexAppServerClient {
     this.requestTimeoutMs = requestTimeoutMs;
     this.nextId = 1;
     this.pending = new Map();
+    this.turnWaiters = new Map();
+    this.completedTurns = new Map();
     this.initializing = null;
     this.initialized = false;
 
@@ -20,7 +22,10 @@ class CodexAppServerClient {
   }
 
   _handleMessage(message) {
-    if (message?.id == null) return;
+    if (message?.id == null) {
+      this._handleNotification(message);
+      return;
+    }
     const pending = this.pending.get(message.id);
     if (!pending) return;
     this.pending.delete(message.id);
@@ -34,6 +39,29 @@ class CodexAppServerClient {
     pending.resolve(message.result);
   }
 
+  _turnKey(threadId, turnId) {
+    return `${threadId}:${turnId}`;
+  }
+
+  _handleNotification(message) {
+    if (message?.method !== 'turn/completed') return;
+    const threadId = message.params?.threadId;
+    const turnId = message.params?.turn?.id;
+    if (!threadId || !turnId) return;
+    const key = this._turnKey(threadId, turnId);
+    const waiter = this.turnWaiters.get(key);
+    if (waiter) {
+      this.turnWaiters.delete(key);
+      clearTimeout(waiter.timer);
+      waiter.resolve(message.params);
+      return;
+    }
+    this.completedTurns.set(key, message.params);
+    if (this.completedTurns.size > 100) {
+      this.completedTurns.delete(this.completedTurns.keys().next().value);
+    }
+  }
+
   _handleExit(error) {
     const reason = error instanceof Error ? error : new Error(String(error || 'app-server 已結束'));
     for (const pending of this.pending.values()) {
@@ -41,6 +69,12 @@ class CodexAppServerClient {
       pending.reject(reason);
     }
     this.pending.clear();
+    for (const waiter of this.turnWaiters.values()) {
+      clearTimeout(waiter.timer);
+      waiter.reject(reason);
+    }
+    this.turnWaiters.clear();
+    this.completedTurns.clear();
     this.initialized = false;
   }
 
@@ -81,6 +115,30 @@ class CodexAppServerClient {
   async sendTurn(request) {
     await this.initialize();
     return this._request(request.method, request.params);
+  }
+
+  async forkThread(threadId, options = {}) {
+    await this.initialize();
+    const result = await this._request('thread/fork', { threadId, ...options });
+    return result.thread;
+  }
+
+  waitForTurnCompleted({ threadId, turnId, timeoutMs = 600000 } = {}) {
+    if (!threadId || !turnId) throw new Error('等待 turn 完成時缺少 threadId 或 turnId');
+    const key = this._turnKey(threadId, turnId);
+    const completed = this.completedTurns.get(key);
+    if (completed) {
+      this.completedTurns.delete(key);
+      return Promise.resolve(completed);
+    }
+    if (this.turnWaiters.has(key)) throw new Error(`已經在等待 Codex turn：${turnId}`);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.turnWaiters.delete(key);
+        reject(new Error(`等待 Codex turn 完成逾時：${turnId}`));
+      }, timeoutMs);
+      this.turnWaiters.set(key, { resolve, reject, timer });
+    });
   }
 
   close() {

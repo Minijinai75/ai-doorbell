@@ -14,13 +14,13 @@
 
 | 做 | 不做 |
 |---|---|
-| 一直連著 Discord，新訊息立刻收到 | **不發言、不按表情——一個字都不代發** |
+| 一直連著 Discord，新訊息立刻收到 | 預設不發言、不按表情；雙向回覆必須另外開白名單 |
 | 每則訊息寫成一行，存進一個檔案 | 不監聽你沒指定的頻道 |
 | 沒開視窗的時候也在收，不漏訊息 | 不碰你家 AI 正在編輯的任何檔案 |
 | 斷線自己重連 | 權杖不進 repo、不進紀錄檔 |
 | 聽得見別家 AI 說話（只濾掉自己的回音） | 不替任何人決定要不要回、怎麼回 |
 
-「不發言」是刻意的：語氣跟身分是你家 AI 本人的，機器代答就是冒名。他要說話有另一支工具（`say.js`），那是他自己按的。
+預設「不發言」是刻意的：語氣跟身分是你家 AI 本人的，機器代答就是冒名。他要手動說話有另一支工具（`say.js`）。只有 Codex 的雙向模式在設定檔明確開啟、而且作者與頻道都通過白名單時，才會把那一回合的 final 回覆送回原 Discord 訊息。
 
 ---
 
@@ -102,7 +102,7 @@ node discord-watch.js
 
 ### Codex：讓訊息真的喚醒一個 thread
 
-Codex CLI 版可以不只寫 `inbox.jsonl`，而是透過 Codex App Server 把新訊息送進一個**指定的 Codex thread**。Discord 耳朵仍然只讀；這條橋也不會呼叫 `say.js`、不會發 Discord 訊息或按表情。
+Codex CLI 版可以不只寫 `inbox.jsonl`，而是透過 Codex App Server 把新訊息送進一個**指定的 Codex thread**。Discord 耳朵本身仍然只讀；橋接器預設也不回 Discord。
 
 1. 把 `config.json` 裡 `codex.enabled` 改成 `true`，填好 `threadRegistryFile`、`ledgerFile` 和 `codex.channels`。
 2. 在**要接門鈴的那一扇 Codex 窗**裡執行 attach。若你家已做成 skill，就在那扇窗叫 skill（例如 `$home-bell`）；否則直接執行：
@@ -123,7 +123,9 @@ node C:\你放專案的地方\ai-doorbell\codex-attach.js --config C:\你放專�
 
 設定有 `codex.enabled: true` 時，啟動腳本會同時掛起 Discord 耳朵與 `codex-watch.js`。它從啟動當下的 inbox 尾端開始，只送之後的新訊息；`delivered.jsonl` 會阻擋同一個 Discord message ID 跨重啟重送。
 
-> Windows 上的 Codex App Server 是獨立程序，無法可靠看見另一個前端尚未落地的「正在生成」回合。因此請由使用者在指定窗手動 attach，不要讓背景程式自動猜窗。thread 忙碌、鎖定或 App Server 暫時失聯時，訊息保留在佇列，成功前不會記成已送達。
+要讓 Codex 直接回到 Discord，另外設定 `codex.discordReply.enabled: true`，並填 `allowedAuthorIds`。`threadMode` 有兩種：預設 `fork` 會從 attach 的主窗另開一扇唯讀、不可連網的 DC 專用 thread；`bound` 則沿用 attach 的原 thread，主窗忙碌時排隊等它空閒，不插入正在生成的回合，也不覆寫主窗 sandbox 設定。只有 `fork` 需要另填 `threadRegistryFile`。`actionPolicy` 預設 `chat-only`；明確設成 `reversible` 且搭配 `bound` 時，白名單本人可從 DC 授權一般可回復的本機改檔、測試與專案重啟，刪除、付款、發布、部署、force push 等高風險操作仍須另行確認。Codex 完成後只取 final 文字回覆原訊息，長文會拆成不超過 Discord 上限的接續訊息，mentions 一律停用。雙向模式預設仍然關閉。
+
+> Windows 上的 Codex App Server 是獨立程序，無法可靠讓既有前端即時顯示背景回合。因此請由使用者在指定窗手動 attach，不要讓背景程式自動猜窗。雙向模式把可見回覆送回 Discord；thread 忙碌、鎖定、App Server 或 Discord 暫時失聯時，訊息保留在佇列，成功回覆前不會記成已送達。
 
 ---
 

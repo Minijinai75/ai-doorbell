@@ -59,5 +59,14 @@ foreach ($program in $programs) {
     }
     Write-Host "✓ $who 的$($program.Name)確認正在跑（行程編號 $($now.ProcessId -join '、')），沒有視窗。"
 }
-Write-Host "  它在做的事：收$what 的新訊息寫進 inbox；Codex 開啟時只把通知送進綁定窗。絕不回 Discord。"
+$replying = -not $conf.repos -and $conf.codex.enabled -and $conf.codex.discordReply.enabled
+if ($replying) {
+    if ($conf.codex.discordReply.threadMode -eq 'bound') {
+        Write-Host "  它在做的事：收$what 的新訊息寫進 inbox；只替白名單使用者沿用綁定原窗，等空閒後把 final 回覆送回原訊息。"
+    } else {
+        Write-Host "  它在做的事：收$what 的新訊息寫進 inbox；只替白名單使用者喚醒唯讀 DC 專用窗，並把 final 回覆送回原訊息。"
+    }
+} else {
+    Write-Host "  它在做的事：收$what 的新訊息寫進 inbox；Codex 開啟時只把通知送進綁定窗。絕不回 Discord。"
+}
 Write-Host "  看它的運轉紀錄：$Root\logs\"

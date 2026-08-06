@@ -30,6 +30,20 @@
     "pollIntervalMs": 500,
     "retryDelayMs": 5000,
     "requestTimeoutMs": 30000,
+    "discordReply": {
+      "enabled": false,
+      "_enabled": "預設關閉。開啟後，Codex 的 final 回覆會由 bot 回到原 Discord 訊息。",
+      "threadMode": "fork",
+      "_threadMode": "fork＝另開唯讀 DC 專用 thread，bound＝沿用 attach 的原 thread 並在忙碌時排隊。",
+      "actionPolicy": "chat-only",
+      "_actionPolicy": "chat-only＝只聊天；reversible＝允許白名單本人要求可回復的本機改檔、測試與專案重啟，只能搭配 bound。高風險操作仍另問。",
+      "allowedAuthorIds": ["000000000000000000"],
+      "_allowedAuthorIds": "必填的使用者 ID 白名單；雙向模式只接受這些人的訊息，避免 bot 回音或陌生人叫醒 AI。",
+      "threadRegistryFile": "C:/你家AI的資料夾/codex-doorbell/discord-thread-bindings.jsonl",
+      "_threadRegistryFile": "DC 專用 Codex thread 的追加式紀錄。第一次訊息會從綁定主窗 fork 一扇唯讀專用窗，避免干擾主窗。",
+      "responseTimeoutMs": 600000,
+      "_responseTimeoutMs": "最多等 Codex 回覆多久；預設十分鐘。"
+    },
     "logFile": "./logs/codex-watch.log"
   },
 
