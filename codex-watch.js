@@ -13,6 +13,7 @@ const {
 const { JsonlFollower, readLatestThreadBinding } = require('./codex-inbox');
 const { ensureDiscordReplyThread } = require('./codex-reply-thread');
 const { spawnCodexAppServer } = require('./codex-stdio-transport');
+const { connectCodexAppServer } = require('./codex-websocket-transport');
 const { createDiscordSenderFromConfig } = require('./discord-send');
 
 function twNow() {
@@ -39,6 +40,18 @@ function loadConfig(configPath) {
   if (!config.inboxFile) throw new Error('設定檔缺少 inboxFile');
   if (!config.codex?.threadRegistryFile) throw new Error('設定檔缺少 codex.threadRegistryFile');
   if (!config.codex?.ledgerFile) throw new Error('設定檔缺少 codex.ledgerFile');
+  if (config.codex.appServerUrl) {
+    let endpoint;
+    try {
+      endpoint = new URL(config.codex.appServerUrl);
+    } catch {
+      throw new Error('codex.appServerUrl 必須是有效的 loopback WebSocket URL');
+    }
+    const loopbackHosts = new Set(['127.0.0.1', 'localhost', '[::1]']);
+    if (endpoint.protocol !== 'ws:' || !loopbackHosts.has(endpoint.hostname)) {
+      throw new Error('codex.appServerUrl 只接受 ws:// loopback endpoint');
+    }
+  }
   if (config.codex.discordReply?.enabled) {
     const threadMode = config.codex.discordReply.threadMode || 'fork';
     const actionPolicy = config.codex.discordReply.actionPolicy || 'chat-only';
@@ -61,6 +74,22 @@ function loadConfig(configPath) {
     if (!config.tokenFile) throw new Error('雙向 Discord 必須設定 tokenFile');
   }
   return config;
+}
+
+function createCodexTransport({
+  appServerUrl,
+  cwd,
+  onDiagnostic,
+  connect = connectCodexAppServer,
+  spawn = spawnCodexAppServer,
+} = {}) {
+  if (appServerUrl) return connect(appServerUrl, { onDiagnostic });
+  return spawn({ cwd, onDiagnostic });
+}
+
+async function warmCodexClient({ binding, getClient } = {}) {
+  if (!binding?.threadId) return null;
+  return getClient(binding).resumeThread(binding.threadId);
 }
 
 function createLogger(logFile) {
@@ -118,7 +147,8 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
 
   function getClient(activeBinding = binding) {
     if (client) return client;
-    const transport = spawnCodexAppServer({
+    const transport = createCodexTransport({
+      appServerUrl: codex.appServerUrl,
       cwd: activeBinding?.cwd || process.cwd(),
       onDiagnostic: (message) => logger.log('APP', message),
     });
@@ -133,6 +163,18 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
     if (!discordSender) discordSender = createDiscordSenderFromConfig(config, configPath);
     return discordSender;
   }
+
+  const ready = warmCodexClient({ binding, getClient }).then((thread) => {
+    if (thread) {
+      const endpoint = codex.appServerUrl || 'private stdio app-server';
+      logger.log('INFO', `Codex 家鈴已連上 ${endpoint}，並訂閱 thread ${thread.id}`);
+    }
+    return thread;
+  }).catch((error) => {
+    resetClient();
+    logger.log('WARN', `Codex 家鈴啟動連線失敗，收到訊息時會重試：${error.message}`);
+    return null;
+  });
 
   async function send(record) {
     return deliverWithRetry({
@@ -206,6 +248,7 @@ function startCodexWatch({ configPath, checkOnly = false } = {}) {
     : '只送入 Codex';
   logger.log('INFO', `Codex 門鈴開始守候（${mode}）；白名單頻道 ${allowedChannels.join('、') || '沿用全部 inbox'}`);
   return {
+    ready,
     close() {
       closed = true;
       clearInterval(timer);
@@ -236,7 +279,9 @@ if (require.main === module) {
 
 module.exports = {
   configPathFromArgs,
+  createCodexTransport,
   loadConfig,
   resolveFromConfig,
   startCodexWatch,
+  warmCodexClient,
 };

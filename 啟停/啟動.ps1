@@ -69,4 +69,7 @@ if ($replying) {
 } else {
     Write-Host "  它在做的事：收$what 的新訊息寫進 inbox；Codex 開啟時只把通知送進綁定窗。絕不回 Discord。"
 }
+if ($conf.codex.appServerUrl) {
+    Write-Host "  Codex 橋接目標：$($conf.codex.appServerUrl)（與用 --remote 開的終端共用）"
+}
 Write-Host "  看它的運轉紀錄：$Root\logs\"

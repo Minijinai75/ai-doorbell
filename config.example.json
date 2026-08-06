@@ -21,6 +21,8 @@
   "codex": {
     "enabled": false,
     "_enabled": "要讓 Discord 新訊息真正喚醒 Codex 才改成 true；只想落地 inbox 就維持 false。",
+    "appServerUrl": "ws://127.0.0.1:42121",
+    "_appServerUrl": "要讓眼前終端也看見家鈴回合，就讓 Codex TUI 與 codex-watch 共用這個本機 App Server；只能用 loopback ws://。省略時保留舊版私人 stdio 模式。",
     "threadRegistryFile": "C:/你家AI的資料夾/codex-doorbell/thread-bindings.jsonl",
     "_threadRegistryFile": "哪一扇 Codex 窗要接門鈴的追加式紀錄；不含權杖。",
     "ledgerFile": "C:/你家AI的資料夾/codex-doorbell/delivered.jsonl",

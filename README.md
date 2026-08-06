@@ -115,7 +115,7 @@ node C:\你放專案的地方\ai-doorbell\codex-attach.js --config C:\你放專�
 
 如果 AI 有自己的開窗記憶流程，把「取回記憶」放在 skill 的 attach 前面。這樣不是門鈴替 AI 塞記憶，而是被指定的窗先成為完整的本人，再開始收通知。
 
-3. 照常啟動：
+3. 如果只需要背景 thread，可照常啟動：
 
 ```powershell
 .\啟停\啟動.ps1
@@ -123,9 +123,17 @@ node C:\你放專案的地方\ai-doorbell\codex-attach.js --config C:\你放專�
 
 設定有 `codex.enabled: true` 時，啟動腳本會同時掛起 Discord 耳朵與 `codex-watch.js`。它從啟動當下的 inbox 尾端開始，只送之後的新訊息；`delivered.jsonl` 會阻擋同一個 Discord message ID 跨重啟重送。
 
+如果要讓**眼前終端也即時看見家鈴回合**，在 `codex.appServerUrl` 填本機 endpoint（例如 `ws://127.0.0.1:42121`），以後改用一條命令開窗：
+
+```powershell
+.\啟停\開啟共享Codex.ps1 -Config config.json
+```
+
+這支啟動器會確認 loopback App Server 已就緒、啟動 Discord 耳朵與橋接器，再用綁定檔裡最後一筆有效 thread ID 執行 `codex resume --remote`。因此 TUI 與家鈴從開場就是同一個 App Server 的兩個 client；壞行會跳過，但不會用標題、時間或「最近視窗」猜 thread。可先加 `-WhatIf` 看它準備連哪個 endpoint 與 thread。
+
 要讓 Codex 直接回到 Discord，另外設定 `codex.discordReply.enabled: true`，並填 `allowedAuthorIds`。`threadMode` 有兩種：預設 `fork` 會從 attach 的主窗另開一扇唯讀、不可連網的 DC 專用 thread；`bound` 則沿用 attach 的原 thread，主窗忙碌時排隊等它空閒，不插入正在生成的回合，也不覆寫主窗 sandbox 設定。只有 `fork` 需要另填 `threadRegistryFile`。`actionPolicy` 預設 `chat-only`；明確設成 `reversible` 且搭配 `bound` 時，白名單本人可從 DC 授權一般可回復的本機改檔、測試與專案重啟，刪除、付款、發布、部署、force push 等高風險操作仍須另行確認。Codex 完成後只取 final 文字回覆原訊息，長文會拆成不超過 Discord 上限的接續訊息，mentions 一律停用。雙向模式預設仍然關閉。
 
-> Windows 上的 Codex App Server 是獨立程序，無法可靠讓既有前端即時顯示背景回合。因此請由使用者在指定窗手動 attach，不要讓背景程式自動猜窗。雙向模式把可見回覆送回 Discord；thread 忙碌、鎖定、App Server 或 Discord 暫時失聯時，訊息保留在佇列，成功回覆前不會記成已送達。
+> 同一個 thread ID 不代表兩個獨立 App Server 的前端會互相看見。要讓終端同步顯示，TUI 與 `codex-watch.js` 必須共用 `codex.appServerUrl`；省略此欄才會保留舊版私人 stdio App Server。thread 忙碌、鎖定、App Server 或 Discord 暫時失聯時，訊息留在佇列，成功回覆前不會記成已送達。
 
 ---
 

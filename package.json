@@ -14,7 +14,8 @@
     "codex:attach": "node codex-attach.js --config config.json"
   },
   "dependencies": {
-    "discord.js": "^14.26.4"
+    "discord.js": "^14.26.4",
+    "ws": "^8.21.2"
   },
   "engines": {
     "node": ">=18"
